@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101f3d"><title>MY BILL BOOK</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--navy:#101f3d;--gold:#d8b65a;--bg:#f5f6f8;--ink:#172033;--muted:#687386}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,Arial;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:white;padding:18px 16px 22px;border-bottom:4px solid var(--gold)}
+header h1{font-size:21px;margin:0}header p{margin:5px 0 0;color:#e5d7ad;font-size:13px}
+main{max-width:760px;margin:auto;padding:16px 14px 90px}
+nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:8px 3px;z-index:5}
+nav button{border:0;background:none;color:#536075;font-size:12px;padding:6px 4px}
+nav button.active{color:var(--navy);font-weight:800}
+nav span{display:block;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile,.panel{background:white;border:1px solid #e2e5ea;border-radius:16px;padding:16px;box-shadow:0 2px 8px #17203308}
+.tile{min-height:112px;text-align:left;color:var(--ink);font-weight:700;font-size:16px}
+.tile b{display:block;font-size:27px;margin-bottom:8px;color:var(--navy)}
+h2{font-size:20px;margin:8px 0 14px}.muted{color:var(--muted);font-size:13px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #ccd2dc;border-radius:10px;background:white;font:inherit;color:var(--ink)}
+textarea{min-height:75px}
+button.primary,.action{background:var(--navy);color:white;border:0;border-radius:10px;padding:12px 15px;font-weight:700}
+button.gold{background:var(--gold);color:#1b2434;border:0;border-radius:10px;padding:12px 15px;font-weight:800}
+button.ghost{background:#edf0f5;border:0;border-radius:10px;padding:10px 12px;color:var(--navy)}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.item{padding:12px 0;border-bottom:1px solid #e7e9ee}
+.amount{font-weight:800;color:var(--navy)}.right{text-align:right}.hidden{display:none!important}
+.stat{font-size:24px;font-weight:800;color:var(--navy)}.danger{color:#b33}
+@media(max-width:380px){.grid{gap:8px}.tile{padding:12px}}
+</style></head>
+<body>
+<header><h1>MY BILL BOOK</h1><p>Billing · Expenses · Day Book</p></header>
+<main id="app"></main>
+<nav>
+<button data-page="home" class="active"><span>⌂</span>Home</button>
+<button data-page="bills"><span>▤</span>Bills</button>
+<button data-page="expenses"><span>₹</span>Expenses</button>
+<button data-page="daybook"><span>▦</span>Day Book</button>
+<button data-page="profile"><span>☻</span>Profile</button>
+</nav>
+<script>
+const $=s=>document.querySelector(s), money=n=>'₹'+Number(n||0).toFixed(2);
+const get=k=>JSON.parse(localStorage.getItem(k)||'[]'), put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+let page='home', lines=[{name:'',price:0,qty:1,unit:'Pcs'}];
+function go(p){page=p;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render()}
+function render(){
+ const app=$('#app');
+ if(page==='home'){let bills=get('bills'),ex=get('expenses');app.innerHTML=`<h2>Welcome${localStorage.shopName?' · '+localStorage.shopName:''}</h2><div class="grid">
+ <button class="tile" onclick="go('newbill')"><b>＋</b>Billing<small class="muted">Create a new bill</small></button>
+ <button class="tile" onclick="go('expenses')"><b>₹</b>Expenses<small class="muted">Record shop expenses</small></button>
+ <button class="tile" onclick="go('bills')"><b>⌕</b>Search Bills<small class="muted">Find saved bills</small></button>
+ <button class="tile" onclick="go('daybook')"><b>▦</b>Day Book<small class="muted">Income and expenses</small></button></div>
+ <div class="panel" style="margin-top:14px"><div class="muted">Saved bills</div><div class="stat">${bills.length}</div><div class="muted">Recorded expenses: ${ex.length}</div></div>`}
+ if(page==='newbill') billPage();
+ if(page==='bills') billsPage();
+ if(page==='expenses') expensesPage();
+ if(page==='daybook') daybookPage();
+ if(page==='profile') profilePage();
+ if(page==='help') app.innerHTML=`<h2>Help & Support</h2><div class="panel"><p>Email Support</p><p>Demo Videos</p><p>Frequently Asked Questions</p><p>Ask a Question</p><p class="muted">Support email can be added in a later setup.</p></div>`;
+}
+function billPage(){let total=lines.reduce((s,x)=>s+(+x.price||0)*(+x.qty||0),0);$('#app').innerHTML=`<h2>New Bill</h2><div class="panel"><label>Customer Name</label><input id="cname" placeholder="Customer name"><label>Mobile Number</label><input id="mobile" inputmode="tel" placeholder="Mobile number"><div id="lines">${lines.map((x,i)=>`<div class="item"><label>Item ${i+1}</label><input placeholder="Item name" value="${x.name}" oninput="lines[${i}].name=this.value"><div class="row"><div><label>Price</label><input type="number" min="0" value="${x.price}" oninput="lines[${i}].price=this.value;renderBillTotal()"></div><div><label>Quantity</label><input type="number" min="0" value="${x.qty}" oninput="lines[${i}].qty=this.value;renderBillTotal()"></div></div><label>Unit</label><select onchange="lines[${i}].unit=this.value">${['Pcs','Feet','Sq.ft','Sq.m','Inches','Centimeter','Meter','Millimeter','Roll','Set','Box','Kg','Gram','Litre','Nos'].map(u=>`<option ${x.unit===u?'selected':''}>${u}</option>`).join('')}</select><div class="right amount" id="line${i}">${money(x.price*x.qty)}</div></div>`).join('')}</div><button class="ghost" onclick="lines.push({name:'',price:0,qty:1,unit:'Pcs'});render()">＋ Add item</button><label>Discount (₹)</label><input id="discount" type="number" min="0" value="0" oninput="renderBillTotal()"><hr><div class="row"><b>Grand Total</b><strong class="amount" id="grand">${money(total)}</strong></div><button class="gold" style="width:100%;margin-top:16px" onclick="saveBill()">Save Bill</button></div>`}
+function renderBillTotal(){let t=lines.reduce((s,x)=>s+(+x.price||0)*(+x.qty||0),0);lines.forEach((x,i)=>{let el=$('#line'+i);if(el)el.textContent=money(x.price*x.qty)});let d=+($('#discount')?.value||0);$('#grand').textContent=money(Math.max(0,t-d))}
+function saveBill(){let name=$('#cname').value.trim();if(!name){alert('Enter customer name');return}let total=lines.reduce((s,x)=>s+(+x.price||0)*(+x.qty||0),0)-(+$('#discount').value||0);let a=get('bills');a.unshift({no:'B'+Date.now(),name,mobile:$('#mobile').value,lines:lines.map(x=>({...x})),total:Math.max(0,total),date:new Date().toISOString()});put('bills',a);lines=[{name:'',price:0,qty:1,unit:'Pcs'}];alert('Bill saved on this device');go('bills')}
+function billsPage(){let b=get('bills');$('#app').innerHTML=`<h2>Search Bills</h2><input id="search" placeholder="Search bill number, customer or mobile" oninput="filterBills()"><div id="billlist">${billRows(b)}</div>`}
+function billRows(b){return b.length?b.map(x=>`<div class="item"><b>${x.name}</b><div class="muted">${x.no} · ${new Date(x.date).toLocaleDateString()}</div><div class="amount">${money(x.total)}</div><button class="ghost" onclick="alert(${JSON.stringify(x.lines.map(i=>i.name+' · '+i.qty+' '+i.unit+' · '+money(i.price*i.qty)).join('\\n')+'\\nTotal '+money(x.total))})">View details</button></div>`).join(''):'<p class="muted">No bills saved yet.</p>'}
+function filterBills(){let q=$('#search').value.toLowerCase(),b=get('bills').filter(x=>(x.name+x.mobile+x.no).toLowerCase().includes(q));$('#billlist').innerHTML=billRows(b)}
+function expensesPage(){$('#app').innerHTML=`<h2>Expenses</h2><div class="panel"><label>Expense Name</label><input id="ename" placeholder="e.g. Shop rent"><div class="row"><div><label>Amount</label><input id="eamount" type="number" min="0" placeholder="₹"></div><div><label>Date</label><input id="edate" type="date" value="${new Date().toISOString().slice(0,10)}"></div></div><label>Category</label><select id="ecat"><option>Shop</option><option>Transport</option><option>Salary</option><option>Purchase</option><option>Other</option></select><label>Payment Method</label><select id="epay"><option>Cash</option><option>UPI</option><option>Bank</option><option>Card</option></select><label>Notes</label><textarea id="enote"></textarea><button class="gold" style="width:100%;margin-top:12px" onclick="saveExpense()">Save Expense</button></div><h2 style="margin-top:18px">Recent Expenses</h2><div id="exlist">${expenseRows(get('expenses'))}</div>`}
+function saveExpense(){let n=$('#ename').value.trim(),a=+$('#eamount').value;if(!n||a<=0){alert('Enter expense name and valid amount');return}let x=get('expenses');x.unshift({name:n,amount:a,date:$('#edate').value,cat:$('#ecat').value,pay:$('#epay').value,note:$('#enote').value});put('expenses',x);expensesPage()}
+function expenseRows(a){return a.length?a.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="muted">${x.date} · ${x.cat} · ${x.pay}</div><span class="danger">${money(x.amount)}</span> <button class="ghost" onclick="deleteExpense(${i})">Delete</button></div>`).join(''):'<p class="muted">No expenses saved yet.</p>'}
+function deleteExpense(i){let a=get('expenses');a.splice(i,1);put('expenses',a);expensesPage()}
+function daybookPage(){let b=get('bills'),e=get('expenses'),inc=b.reduce((s,x)=>s+x.total,0),out=e.reduce((s,x)=>s+x.amount,0);$('#app').innerHTML=`<h2>Day Book</h2><div class="grid"><div class="panel"><div class="muted">Income (saved bills)</div><div class="stat">${money(inc)}</div></div><div class="panel"><div class="muted">Expenses</div><div class="stat">${money(out)}</div></div></div><div class="panel" style="margin-top:12px"><div class="muted">Net balance</div><div class="stat">${money(inc-out)}</div><p class="muted">Totals are based on all locally saved bills and expenses.</p></div>`}
+function profilePage(){$('#app').innerHTML=`<h2>Profile</h2><div class="panel"><label>Business Name</label><input id="shop" value="${localStorage.shopName||'HIGH DECOR'}"><label>Address</label><textarea id="address" placeholder="Shop address">${localStorage.address||''}</textarea><label>Phone</label><input id="phone" value="${localStorage.phone||''}"><label>GST</label><select id="gst"><option>Non-GST</option><option>GST</option></select><button class="gold" style="width:100%;margin-top:12px" onclick="localStorage.shopName=$('#shop').value;localStorage.address=$('#address').value;localStorage.phone=$('#phone').value;alert('Profile saved on this device');render()">Save Profile</button></div><button class="ghost" style="margin-top:12px" onclick="go('help')">Help & Support</button><p class="muted">Prototype: information is stored only in this browser on this device.</p>`}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();
+</script></body></html>
